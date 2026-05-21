@@ -384,25 +384,27 @@ def construct_grasp(inst, alpha, rng, mode="nn"):
     Construccion golosa aleatorizada (RCL parametrizada por alpha).
         alpha = 0 -> goloso puro ; alpha = 1 -> aleatorio
     mode = "nn"  cliente mas cercano al nodo actual
-           "ins" menor incremento de llegada al anexar al final
+           "ins" menor incremento de llegada al anexar al final // No se encontro mucha diferencia
     """
-    d = inst.dist
+    d = inst.dist # Distances Matrix
     unvisited = set(range(1, inst.n + 1))
     solution = []
     while unvisited:
         trip = []
-        cap_left = inst.Q
-        current = 0
+        cap_left = inst.Q #Vehicule Capacity
+        current = 0 #Cuerrent node, all travels init in the deposito
         while True:
             cand = [c for c in unvisited
                     if inst.demand[c] <= cap_left + 1e-9]
+            # print(cand)
             if not cand:
                 break
-            scored = sorted((d[current][c], c) for c in cand)
+            scored = sorted((d[current][c], c) for c in cand) #Puntuation of the distance withe the actual node
+            # print(scored)
             gmin, gmax = scored[0][0], scored[-1][0]
-            thr = gmin + alpha * (gmax - gmin)
-            rcl = [c for (v, c) in scored if v <= thr + 1e-9]
-            chosen = rng.choice(rcl)
+            thr = gmin + alpha * (gmax - gmin) #umbral
+            rcl = [c for (v, c) in scored if v <= thr + 1e-9] #v is the puntuation and c the client, list rcl
+            chosen = rng.choice(rcl) #Random client from rcl list
             trip.append(chosen)
             unvisited.discard(chosen)
             cap_left -= inst.demand[chosen]
@@ -423,19 +425,20 @@ def _capacity_ok(trip, inst):
 
 def local_search(solution, inst):
     """Busqueda local VND hasta optimo local (relocate, swap, 2-opt)."""
-    sol = [list(t) for t in solution if t]
+    sol = [list(t) for t in solution if t] #Actual solution
     best_val, _ = evaluate(sol, inst)
     improved = True
     while improved:
         improved = False
 
-        # Vecindario 1: relocate
-        for ti in range(len(sol)):
-            for pi in range(len(sol[ti])):
-                cust = sol[ti][pi]
+        # Vecindario 1: relocate - Move a customer to another position (same or different trip)
+        for ti in range(len(sol)): #for every trip in the solution
+            # print(sol)
+            for pi in range(len(sol[ti])): #for every position in the actual trip of the actual solution
+                cust = sol[ti][pi] #Client to move
                 for tj in range(len(sol)):
                     for pj in range(len(sol[tj]) + 1):
-                        if ti == tj and (pj == pi or pj == pi + 1):
+                        if ti == tj and (pj == pi or pj == pi + 1): #check if is the same position
                             continue
                         ns = [list(t) for t in sol]
                         ns[ti].pop(pi)
@@ -514,14 +517,15 @@ def local_search(solution, inst):
 
 def grasp(inst, max_iter=100, alpha=0.3, mode="nn", seed=12345,
           time_limit=None, verbose=False):
-    rng = random.Random(seed)
+    rng = random.Random(seed) 
     best_sol, best_val = None, float("inf")
     t0 = time.time()
     history = []
     for it in range(max_iter):
         if time_limit is not None and (time.time() - t0) >= time_limit:
             break
-        init = construct_grasp(inst, alpha, rng, mode=mode)
+        init = construct_grasp(inst, alpha, rng, mode=mode) 
+        # print(init)
         sol, val = local_search(init, inst)
         if val < best_val:
             best_val = val
@@ -583,6 +587,7 @@ def run_experiment(inst, configs, replicas=10, base_seed=1000,
                         mode=cfg["mode"], seed=base_seed + r,
                         time_limit=time_limit)
             vals.append(res["objective"])
+            # print(vals)
             times.append(res["time"])
             if res["objective"] < cfg_best_val:
                 cfg_best_val, cfg_best = res["objective"], res
@@ -642,7 +647,7 @@ def _self_test():
 DEFAULT_CONFIGS = [
     {"name": "C1-nn-a02",  "mode": "nn",  "alpha": 0.2, "max_iter": 80},
     {"name": "C2-nn-a04",  "mode": "nn",  "alpha": 0.4, "max_iter": 80},
-    {"name": "C3-ins-a03", "mode": "ins", "alpha": 0.3, "max_iter": 80},
+    {"name": "C3-nn-a03", "mode": "nn", "alpha": 0.3, "max_iter": 80},
     {"name": "C4-nn-a00",  "mode": "nn",  "alpha": 0.0, "max_iter": 80},
 ]
 
